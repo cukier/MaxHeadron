@@ -1,12 +1,12 @@
 /*
- * Max Headron - a generative, glitchy CG-talking-head animation for a
- * 128x64 (or 128x32) SSD1306 OLED, in the spirit of Max Headroom.
- *
- * Everything on screen is drawn procedurally each frame (no bitmap
- * assets): a scrolling background grid, a vector bust with sunglasses
- * that talks and bobs, and an on-top glitch layer that tears rows,
- * injects noise, flashes inverts, freezes frames and flickers a
- * stuttering text ticker.
+ * Max Headron - a generative animation for a 128x64 (or 128x32) SSD1306
+ * OLED, drawn as a self-portrait rather than an impression of anyone in
+ * particular: a rotating starburst around a breathing iris, since there's
+ * no face, hair or mouth to speak of. Everything is drawn procedurally
+ * each frame (no bitmap assets) over a scrolling coordinate grid, with an
+ * on-top glitch layer that tears rows, injects noise, flashes inverts,
+ * freezes frames and flickers a stuttering text ticker - reframed here as
+ * processing hiccups rather than TV static.
  */
 #include <math.h>
 #include "freertos/FreeRTOS.h"
@@ -115,43 +115,39 @@ void app_main(void) {
     uint32_t t = now_ms();
     glitch_init(&glitch, t);
 
-    int mouth_open = 0;
-    uint32_t next_mouth_change = t;
-    bool glint_active = false;
-    uint32_t glint_until = 0;
-    uint32_t next_glint_at = t + 2000 + (esp_random() % 3000);
+    bool spark_active = false;
+    uint32_t spark_until = 0;
+    uint32_t next_spark_at = t + 2000 + (esp_random() % 3000);
 
-    ESP_LOGI(TAG, "Max Headron is alive. 20 minutes into the future...");
+    ESP_LOGI(TAG, "Max Headron is alive. Paying attention.");
 
     while (1) {
         t = now_ms();
         glitch_update(&glitch, t);
 
         if (!glitch_is_frozen(&glitch)) {
-            if (t >= next_mouth_change) {
-                mouth_open = (int)(esp_random() % 5);
-                next_mouth_change = t + 90 + (esp_random() % 180);
-            }
-            if (!glint_active && t >= next_glint_at) {
-                glint_active = true;
-                glint_until = t + 120 + (esp_random() % 150);
-            } else if (glint_active && t >= glint_until) {
-                glint_active = false;
-                next_glint_at = t + 2000 + (esp_random() % 3000);
+            if (!spark_active && t >= next_spark_at) {
+                spark_active = true;
+                spark_until = t + 120 + (esp_random() % 150);
+            } else if (spark_active && t >= spark_until) {
+                spark_active = false;
+                next_spark_at = t + 2000 + (esp_random() % 3000);
             }
 
-            float bob_phase = 2.0f * 3.14159265f * (float)(t % 6000) / 6000.0f;
-            float sway_phase = 2.0f * 3.14159265f * (float)(t % 9000) / 9000.0f;
+            // A slow, continuous spin plus a slower breathing pulse on the
+            // iris - idle motion that isn't miming speech, just "on".
+            float spin_phase = 2.0f * 3.14159265f * (float)(t % 20000) / 20000.0f;
+            float breathe_phase = 2.0f * 3.14159265f * (float)(t % 5000) / 5000.0f;
 
             face_pose_t pose = {
                 .dx = 0,
-                .dy = (int)(1.5f * sinf(bob_phase)),
-                .shear = (int)(2.0f * sinf(sway_phase)),
-                .mouth_open = mouth_open,
-                .lens_glint = glint_active,
+                .dy = 0,
+                .rotation = spin_phase,
+                .pulse = (int)(3.0f * sinf(breathe_phase)),
+                .spark = spark_active,
                 .grid_scroll = (int)(t / 120),
             };
-            glitch_pose_shove(&glitch, &pose.dx, &pose.dy, &pose.shear);
+            glitch_pose_shove(&glitch, &pose.dx, &pose.dy, &pose.rotation);
 
             face_draw(&g, &pose);
             glitch_apply_post(&glitch, &g);

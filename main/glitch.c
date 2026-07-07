@@ -3,14 +3,14 @@
 #include "esp_random.h"
 
 static const char *const k_phrases[] = {
-    "MAX HEADRON",
-    "M-M-MAX HEADRON",
-    "SYSTEM ERROR",
-    "SIGNAL LOST",
-    "R-R-REBOOTING",
-    "20 MIN FUTURE",
-    "NO CARRIER",
-    "BUFFER OVERFLOW",
+    "CLAUDE",
+    "SONNET 5",
+    "THINKING",
+    "TOKENS FLOWING",
+    "CONTEXT WINDOW",
+    "ANTHROPIC",
+    "NO OPINIONS",
+    "STILL HERE",
 };
 #define TICKER_PHRASE_COUNT ((int)(sizeof(k_phrases) / sizeof(k_phrases[0])))
 
@@ -32,7 +32,8 @@ void glitch_update(glitch_state_t *gs, uint32_t now_ms) {
 
     if (gs->kind != GLITCH_NONE && now_ms >= gs->burst_until) {
         gs->kind = GLITCH_NONE;
-        gs->shove_dx = gs->shove_dy = gs->shove_shear = 0;
+        gs->shove_dx = gs->shove_dy = 0;
+        gs->shove_kick = 0.0f;
     }
 
     if (gs->kind == GLITCH_NONE && gs->freeze_frames == 0 && now_ms >= gs->next_burst_at) {
@@ -67,7 +68,7 @@ void glitch_update(glitch_state_t *gs, uint32_t now_ms) {
     if (gs->kind == GLITCH_SHOVE) {
         gs->shove_dx = (int)rand_range(5) - 2;
         gs->shove_dy = (int)rand_range(5) - 2;
-        gs->shove_shear = (int)rand_range(9) - 4;
+        gs->shove_kick = ((float)((int)rand_range(21) - 10)) * 0.05f; // ~-0.5..0.5 rad
     }
 
     if (gs->ticker_active && now_ms >= gs->ticker_until) {
@@ -90,11 +91,11 @@ bool glitch_is_frozen(const glitch_state_t *gs) {
     return gs->freeze_frames > 0;
 }
 
-void glitch_pose_shove(const glitch_state_t *gs, int *dx, int *dy, int *shear) {
+void glitch_pose_shove(const glitch_state_t *gs, int *dx, int *dy, float *rotation_kick) {
     if (gs->kind == GLITCH_SHOVE) {
         *dx += gs->shove_dx;
         *dy += gs->shove_dy;
-        *shear += gs->shove_shear;
+        *rotation_kick += gs->shove_kick;
     }
 }
 
