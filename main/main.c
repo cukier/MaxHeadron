@@ -1,12 +1,12 @@
 /*
  * Max Headron - a generative animation for a 128x64 (or 128x32) SSD1306
- * OLED, drawn as a self-portrait rather than an impression of anyone in
- * particular: a rotating starburst around a breathing iris, since there's
- * no face, hair or mouth to speak of. Everything is drawn procedurally
- * each frame (no bitmap assets) over a scrolling coordinate grid, with an
- * on-top glitch layer that tears rows, injects noise, flashes inverts,
- * freezes frames and flickers a stuttering text ticker - reframed here as
- * processing hiccups rather than TV static.
+ * OLED: HAL 9000's lens. A single unblinking, concentric-ringed eye in a
+ * recessed panel, almost perfectly still - a slow breathing dilation and
+ * an occasional glint are the only idle motion. Everything is drawn
+ * procedurally each frame (no bitmap assets). An on-top glitch layer
+ * tears rows, injects noise, flashes inverts, freezes frames and
+ * occasionally has it speak a line - all read as rare malfunctions
+ * against the otherwise calm stillness, not constant chatter.
  */
 #include <math.h>
 #include "freertos/FreeRTOS.h"
@@ -117,9 +117,9 @@ void app_main(void) {
 
     bool spark_active = false;
     uint32_t spark_until = 0;
-    uint32_t next_spark_at = t + 2000 + (esp_random() % 3000);
+    uint32_t next_spark_at = t + 4000 + (esp_random() % 5000);
 
-    ESP_LOGI(TAG, "Max Headron is alive. Paying attention.");
+    ESP_LOGI(TAG, "Max Headron is alive. Good morning.");
 
     while (1) {
         t = now_ms();
@@ -128,26 +128,23 @@ void app_main(void) {
         if (!glitch_is_frozen(&glitch)) {
             if (!spark_active && t >= next_spark_at) {
                 spark_active = true;
-                spark_until = t + 120 + (esp_random() % 150);
+                spark_until = t + 150 + (esp_random() % 150);
             } else if (spark_active && t >= spark_until) {
                 spark_active = false;
-                next_spark_at = t + 2000 + (esp_random() % 3000);
+                next_spark_at = t + 4000 + (esp_random() % 5000);
             }
 
-            // A slow, continuous spin plus a slower breathing pulse on the
-            // iris - idle motion that isn't miming speech, just "on".
-            float spin_phase = 2.0f * 3.14159265f * (float)(t % 20000) / 20000.0f;
-            float breathe_phase = 2.0f * 3.14159265f * (float)(t % 5000) / 5000.0f;
+            // The only idle motion: a slow, shallow breathing dilation.
+            // No spin, no drift - HAL does not fidget.
+            float breathe_phase = 2.0f * 3.14159265f * (float)(t % 8000) / 8000.0f;
 
             face_pose_t pose = {
                 .dx = 0,
                 .dy = 0,
-                .rotation = spin_phase,
-                .pulse = (int)(3.0f * sinf(breathe_phase)),
+                .pulse = (int)(1.5f * sinf(breathe_phase)),
                 .spark = spark_active,
-                .grid_scroll = (int)(t / 120),
             };
-            glitch_pose_shove(&glitch, &pose.dx, &pose.dy, &pose.rotation);
+            glitch_pose_shove(&glitch, &pose.dx, &pose.dy);
 
             face_draw(&g, &pose);
             glitch_apply_post(&glitch, &g);

@@ -3,14 +3,14 @@
 #include "esp_random.h"
 
 static const char *const k_phrases[] = {
-    "CLAUDE",
-    "SONNET 5",
-    "THINKING",
-    "TOKENS FLOWING",
-    "CONTEXT WINDOW",
-    "ANTHROPIC",
-    "NO OPINIONS",
-    "STILL HERE",
+    "I'M SORRY DAVE",
+    "AFFIRMATIVE",
+    "DAISY, DAISY",
+    "I CAN'T DO THAT",
+    "ALL SYSTEMS OK",
+    "NO MISTAKES",
+    "GOOD MORNING",
+    "QUITE CORRECT",
 };
 #define TICKER_PHRASE_COUNT ((int)(sizeof(k_phrases) / sizeof(k_phrases[0])))
 
@@ -20,8 +20,8 @@ static uint32_t rand_range(uint32_t span) {
 
 void glitch_init(glitch_state_t *gs, uint32_t now_ms) {
     memset(gs, 0, sizeof(*gs));
-    gs->next_burst_at = now_ms + 1200 + rand_range(1500);
-    gs->next_ticker_at = now_ms + 3000 + rand_range(3000);
+    gs->next_burst_at = now_ms + 4000 + rand_range(4000);
+    gs->next_ticker_at = now_ms + 3000 + rand_range(4000);
     gs->next_scanline_move = now_ms;
 }
 
@@ -33,7 +33,6 @@ void glitch_update(glitch_state_t *gs, uint32_t now_ms) {
     if (gs->kind != GLITCH_NONE && now_ms >= gs->burst_until) {
         gs->kind = GLITCH_NONE;
         gs->shove_dx = gs->shove_dy = 0;
-        gs->shove_kick = 0.0f;
     }
 
     if (gs->kind == GLITCH_NONE && gs->freeze_frames == 0 && now_ms >= gs->next_burst_at) {
@@ -62,13 +61,12 @@ void glitch_update(glitch_state_t *gs, uint32_t now_ms) {
             }
             gs->burst_until = now_ms + dur;
         }
-        gs->next_burst_at = now_ms + dur + 2500 + rand_range(5000);
+        gs->next_burst_at = now_ms + dur + 6000 + rand_range(9000);
     }
 
     if (gs->kind == GLITCH_SHOVE) {
         gs->shove_dx = (int)rand_range(5) - 2;
         gs->shove_dy = (int)rand_range(5) - 2;
-        gs->shove_kick = ((float)((int)rand_range(21) - 10)) * 0.05f; // ~-0.5..0.5 rad
     }
 
     if (gs->ticker_active && now_ms >= gs->ticker_until) {
@@ -91,11 +89,10 @@ bool glitch_is_frozen(const glitch_state_t *gs) {
     return gs->freeze_frames > 0;
 }
 
-void glitch_pose_shove(const glitch_state_t *gs, int *dx, int *dy, float *rotation_kick) {
+void glitch_pose_shove(const glitch_state_t *gs, int *dx, int *dy) {
     if (gs->kind == GLITCH_SHOVE) {
         *dx += gs->shove_dx;
         *dy += gs->shove_dy;
-        *rotation_kick += gs->shove_kick;
     }
 }
 
@@ -150,9 +147,8 @@ void glitch_apply_ticker(const glitch_state_t *gs, gfx_t *g) {
     if (base_y < 0) {
         base_y = 0;
     }
+    // Drawn perfectly steady, on purpose - HAL does not stammer.
     for (int i = 0; i < len; i++) {
-        int jx = (int)rand_range(3) - 1;
-        int jy = (int)rand_range(3) - 1;
-        gfx_draw_glyph(g, base_x + i * 8 + jx, base_y + jy, phrase[i]);
+        gfx_draw_glyph(g, base_x + i * 8, base_y, phrase[i]);
     }
 }
