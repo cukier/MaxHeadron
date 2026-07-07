@@ -1,0 +1,41 @@
+menu "Max Headron Configuration"
+
+    config MAXHEADRON_I2C_SDA_GPIO
+        int "I2C SDA GPIO"
+        default 21
+        help
+            GPIO connected to the SSD1306's SDA pin.
+
+    config MAXHEADRON_I2C_SCL_GPIO
+        int "I2C SCL GPIO"
+        default 22
+        help
+            GPIO connected to the SSD1306's SCL pin.
+
+    config MAXHEADRON_I2C_ADDRESS
+        hex "SSD1306 I2C address"
+        default 0x3C
+        help
+            Most SSD1306 boards are 0x3C. Some are jumpered to 0x3D.
+
+    choice MAXHEADRON_OLED_HEIGHT
+        prompt "OLED panel height"
+        default MAXHEADRON_OLED_HEIGHT_64
+        help
+            128x64 is the common size. Pick 128x32 if that's what you have.
+
+        config MAXHEADRON_OLED_HEIGHT_64
+            bool "128x64"
+        config MAXHEADRON_OLED_HEIGHT_32
+            bool "128x32"
+    endchoice
+
+    config MAXHEADRON_FRAME_DELAY_MS
+        int "Target frame delay (ms)"
+        default 50
+        range 20 200
+        help
+            Time between frames. 50ms ~ 20fps, which comfortably fits the
+            I2C bandwidth of a full 128x64 redraw at 400kHz.
+
+endmenu

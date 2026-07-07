@@ -1,0 +1,137 @@
+#include "include/face.h"
+#include <math.h>
+
+// Base geometry is tuned for a 128x64 panel; vertical sizes scale down
+// automatically for a 128x32 panel via `s`.
+static void draw_grid(gfx_t *g, int scroll) {
+    int phase = ((scroll % 8) + 8) % 8;
+    for (int y = phase; y < g->height; y += 8) {
+        gfx_hline(g, 0, g->width - 1, y, true);
+    }
+    for (int x = 8; x < g->width; x += 16) {
+        gfx_vline(g, x, 0, g->height - 1, true);
+    }
+}
+
+static void fill_ellipse_off(gfx_t *g, int cx, int cy, int rx, int ry) {
+    for (int y = cy - ry; y <= cy + ry; y++) {
+        float dy = (float)(y - cy) / (float)ry;
+        float inside = 1.0f - dy * dy;
+        if (inside < 0) {
+            continue;
+        }
+        int hw = (int)(rx * sqrtf(inside));
+        gfx_fill_rect(g, cx - hw, y, cx + hw, y, false);
+        gfx_set_pixel(g, cx - hw, y, true);
+        gfx_set_pixel(g, cx + hw, y, true);
+    }
+}
+
+static void draw_hair(gfx_t *g, int cx, int top_y, int rx) {
+    static const int8_t dx_pts[] = {-16, -11, -6, -1, 4, 9, 14, 17};
+    static const int8_t dy_pts[] = {2, -7, -2, -9, -3, -8, -1, 3};
+    const int n = sizeof(dx_pts);
+    for (int i = 0; i + 1 < n; i++) {
+        gfx_line(g, cx + dx_pts[i], top_y + dy_pts[i],
+                  cx + dx_pts[i + 1], top_y + dy_pts[i + 1], true);
+    }
+    (void)rx;
+}
+
+static void draw_shoulders(gfx_t *g, int cx, int dy, float s) {
+    int top = (int)(42 * s) + dy;
+    int bottom = g->height - 1;
+    int half_top = (int)(7 * s);
+    int half_bottom = (int)(46 * s);
+    if (half_bottom > 62) {
+        half_bottom = 62;
+    }
+    // Erase the grid under the shoulders, then trace the outline.
+    for (int y = top; y <= bottom; y++) {
+        if (bottom == top) {
+            break;
+        }
+        float t = (float)(y - top) / (float)(bottom - top);
+        int hw = half_top + (int)((half_bottom - half_top) * t);
+        gfx_fill_rect(g, cx - hw, y, cx + hw, y, false);
+    }
+    gfx_line(g, cx - half_top, top, cx - half_bottom, bottom, true);
+    gfx_line(g, cx + half_top, top, cx + half_bottom, bottom, true);
+    gfx_hline(g, cx - half_top, cx + half_top, top, true);
+
+    // Collar V and tie.
+    gfx_line(g, cx - half_top, top, cx, top + (int)(6 * s), true);
+    gfx_line(g, cx + half_top, top, cx, top + (int)(6 * s), true);
+    gfx_vline(g, cx, top + (int)(6 * s), bottom, true);
+}
+
+void face_draw(gfx_t *g, const face_pose_t *pose) {
+    gfx_clear(g);
+    draw_grid(g, pose->grid_scroll);
+
+    float s = (float)g->height / 64.0f;
+    int cx = g->width / 2;
+
+    int head_cy = (int)(24 * s) + pose->dy;
+    int rx = (int)(16 * s);
+    if (rx < 8) {
+        rx = 8;
+    }
+    int ry = (int)(14 * s);
+    if (ry < 6) {
+        ry = 6;
+    }
+    int headx = cx + pose->dx + pose->shear;
+
+    draw_shoulders(g, cx + pose->dx, pose->dy, s);
+
+    // Neck, drawn before the head so the head silhouette sits cleanly on top.
+    int neck_top = head_cy + ry - (int)(2 * s);
+    int neck_bottom = (int)(42 * s) + pose->dy;
+    int neck_half_w = (int)(6 * s);
+    if (neck_bottom > neck_top) {
+        gfx_fill_rect(g, headx - neck_half_w, neck_top, headx + neck_half_w, neck_bottom, false);
+        gfx_vline(g, headx - neck_half_w, neck_top, neck_bottom, true);
+        gfx_vline(g, headx + neck_half_w, neck_top, neck_bottom, true);
+    }
+
+    fill_ellipse_off(g, headx, head_cy, rx, ry);
+    draw_hair(g, headx, head_cy - ry, rx);
+
+    // Visor / sunglasses - the single most Max Headroom feature on this face.
+    int visor_h = (int)(6 * s);
+    if (visor_h < 3) {
+        visor_h = 3;
+    }
+    int visor_y0 = head_cy - (int)(4 * s);
+    int visor_y1 = visor_y0 + visor_h;
+    int visor_w = rx - 2;
+    gfx_fill_rect(g, headx - visor_w, visor_y0, headx + visor_w, visor_y1, true);
+    int lens_w = visor_w / 2;
+    gfx_fill_rect(g, headx - visor_w + 2, visor_y0 + 1, headx - lens_w + 1, visor_y1 - 1, false);
+    gfx_fill_rect(g, headx + lens_w - 1, visor_y0 + 1, headx + visor_w - 2, visor_y1 - 1, false);
+    if (pose->lens_glint) {
+        gfx_line(g, headx - visor_w, visor_y0, headx - lens_w + 1, visor_y1, true);
+        gfx_line(g, headx + lens_w - 1, visor_y0, headx + visor_w, visor_y1, true);
+    }
+
+    // Nose.
+    gfx_vline(g, headx, visor_y1 + 1, visor_y1 + (int)(3 * s) + 1, true);
+
+    // Mouth - height driven by the talking animation.
+    int mouth_y = visor_y1 + (int)(6 * s);
+    int mouth_half_w = (int)(5 * s);
+    if (mouth_half_w < 4) {
+        mouth_half_w = 4;
+    }
+    int mh = pose->mouth_open;
+    if (mh < 0) {
+        mh = 0;
+    }
+    if (mh > 4) {
+        mh = 4;
+    }
+    gfx_fill_rect(g, headx - mouth_half_w, mouth_y - mh, headx + mouth_half_w, mouth_y + mh, false);
+    gfx_hline(g, headx - mouth_half_w, headx + mouth_half_w, mouth_y - mh, true);
+    gfx_hline(g, headx - mouth_half_w, headx + mouth_half_w, mouth_y + mh, true);
+}

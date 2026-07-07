@@ -1,0 +1,15 @@
+# ESP-IDF build output
+build/
+managed_components/
+dependencies.lock
+
+# Generated/local config - sdkconfig.defaults is the one that's meant to be tracked
+sdkconfig
+sdkconfig.old
+
+# Editor/IDE
+.vscode/
+.idea/
+
+# OS cruft
+.DS_Store
