@@ -169,6 +169,7 @@ void app_main(void) {
 
             float bob_phase = 2.0f * 3.14159265f * (float)(t % 6000) / 6000.0f;
             float sway_phase = 2.0f * 3.14159265f * (float)(t % 9000) / 9000.0f;
+            float breathe_phase = 2.0f * 3.14159265f * (float)(t % 8000) / 8000.0f;
 
             face_pose_t pose = {
                 .dx = 0,
@@ -177,6 +178,8 @@ void app_main(void) {
                 .mouth_open = mouth_open,
                 .lens_glint = glint_active,
                 .grid_scroll = (int)(t / 120),
+                .pulse = (int)(1.5f * sinf(breathe_phase)), // HAL-eye variant only
+                .spark = glint_active,                       // HAL-eye variant only
             };
             glitch_pose_shove(&glitch, &pose.dx, &pose.dy, &pose.shear);
 

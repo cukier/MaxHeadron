@@ -38,6 +38,15 @@ menu "Max Headron Configuration"
             Time between frames. 50ms ~ 20fps, which comfortably fits the
             I2C bandwidth of a full 128x64 redraw at 400kHz.
 
+    config MAXHEADRON_FACE_HAL_EYE
+        bool "Draw the original HAL 9000 lens instead of the Max Headroom bust"
+        default n
+        help
+            The very first face this project had: a single unblinking,
+            concentric-ringed eye in a recessed panel (breathing dilation
+            + occasional glint, no mouth, no bust). Leave off for the
+            current Max Headroom-style talking bust.
+
     # Wi-Fi/Ethernet + MQTT remote expression is always built in (see
     # wifi.c/eth.c/mqtt.c): connects to the network and an MQTT broker (see
     # mqtt-broker/README.md) so messages published to the "express" topic
