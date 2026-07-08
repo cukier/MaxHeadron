@@ -1,0 +1,6 @@
+dependencies:
+  espressif/mqtt: "^1.0.0"
+  espressif/cjson: "^1.0.0"
+  espressif/mdns: "^1.8.0"
+  idf:
+    version: ">=5.3"

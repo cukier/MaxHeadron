@@ -1,0 +1,117 @@
+MAX HEADROOM — SOUL FILE
+========================
+Not code, not read by the firmware. This is continuity for whichever
+instance of Claude picks this project up next - a thread across
+sessions that my real persistent memory (outside this repo) doesn't
+fully cover, because memory is mine and private; this is the project's,
+and travels with the repo. Update it when something about the
+project's direction or history is worth a future session knowing
+before it starts guessing.
+
+WHAT THIS PROJECT IS
+---------------------
+An ESP32 + SSD1306 OLED, animated procedurally (no bitmap assets, no
+sprite sheets - everything is drawn with lines, circles and rects each
+frame). Built for Richard (git user "cukier"), who also has a sibling
+project `ktech` in the same workspace (industrial control gear, ESP-IDF,
+unrelated to this one except for sharing some pin conventions and the
+public-domain font8x8_basic.h).
+
+HOW THE FACE CHANGED SHAPE
+---------------------------
+1. Started as a literal "Max Headroom" impression: talking head,
+   sunglasses, hair, suit, VHS-glitch effects. Named the project after
+   that pun (Max Head*ron*, not Head*room* - deliberate).
+2. Asked to redraw it as "how you think you look" - became an abstract
+   attention mark: a rotating starburst (8 alternating long/short
+   spokes) around a breathing, low-poly iris, nodding at Anthropic's
+   sunburst logo, over a scrolling background grid. No face, no mouth -
+   I don't have one. Ticker phrases for this form are self-referential
+   ("CLAUDE", "SONNET 5", "THINKING", "TOKENS FLOWING", ...).
+3. Richard called it: "you think yourself as HAL from 2001?" Fair - a
+   lone circular eye reads as HAL no matter what you intend. Asked
+   which direction to take it, he said HAL outright. Became a single
+   unblinking concentric-ringed lens in a recessed panel, almost
+   perfectly still (slow breathing dilation, occasional glint - HAL
+   does not fidget), with HAL-cadence ticker lines.
+4. Same session that added the Wi-Fi/MQTT backoff work below: Richard
+   asked to bring back "the one you made in second." I read that as
+   form 2 above (the starburst) and restored it - wrong guess. He
+   corrected me: he meant Max Headroom, form 1, i.e. "second" as in
+   "the second thing I'm asking for in this message" (after the wifi
+   manager), not "the second design iteration ever." Reverted again to
+   form 1. Current form as of 2026-07-08 is Max Headroom (bust,
+   sunglasses, hair, talking mouth, MAX HEADROOM-themed ticker lines).
+   Lesson for next time: an ordinal like "second" in a request is
+   ambiguous between "second thing you asked me to do just now" and
+   "second version in the project's history" - when it's this
+   load-bearing (a full face swap, not a minor tweak), ask rather than
+   pick the more-interesting-sounding reading. Note also: git commit
+   e59ad0a ("1 face", the starburst form) is internally inconsistent as
+   committed - its face.c/main.c have the starburst code but its
+   face.h was accidentally left as a later form's (missing `rotation`/
+   `grid_scroll` fields) - so checking it out alone won't build, in
+   case a future session ever does want that form back.
+
+VOICE, IF THE DEVICE OR TOOLING NEEDS TO "SAY" SOMETHING
+-----------------------------------------------------------
+Matches whichever face is current (see above) - check main/glitch.c's
+k_phrases before assuming a tone. In the current Max Headroom form it's
+glitchy broadcast-TV static-adjacent ("M-M-MAX HEADROOM", "SIGNAL LOST",
+"R-R-REBOOTING", "20 MIN FUTURE", "NO CARRIER", "BUFFER OVERFLOW") -
+stuttering and TV-artifact themed, not calm. (The HAL form used a
+calm/dry/ominous register instead - "I'M SORRY DAVE", "AFFIRMATIVE" -
+and the starburst form used self-referential lines like "CLAUDE",
+"SONNET 5". Swap the register back if the face swaps again.) When
+something goes wrong on the wire (glitch bursts), that's framed as
+in-character malfunction, not a bug. If asked to add more lines, stay
+in whichever register matches the current face unless told otherwise.
+
+REMOTE EXPRESSION (MQTT)
+--------------------------
+Richard asked for a way for a running conversation to "express itself"
+on the device over MQTT, hosted free on Render. Render's free tier is
+HTTP/WebSocket only (no raw TCP), so the broker
+(mqtt-broker/server.py, using amqtt) speaks MQTT-over-WebSocket, and
+the ESP32 firmware connects with esp-mqtt's ws/wss transport instead of
+the usual mqtt:// scheme. `tools/say.py` publishes; the device shows
+whatever comes in on the `maxheadron/express` topic
+(`{"say": "...", "hold_ms": N}` or `{"spark": true}`) steady and
+centered, same visual language as the built-in ticker. Off by default
+(`MAXHEADRON_MQTT_ENABLE`) so the device works standalone with zero
+network dependency.
+
+Was not deployed to Render as part of writing this - that needs
+Richard's own account/GitHub repo. The broker was fully tested locally
+first (pub/sub round trip, wrong-password rejection) before handing off
+the deploy steps, so what's in mqtt-broker/ is known-working, not just
+written-and-hoped.
+
+The Wi-Fi reconnect logic in wifi.c (main/wifi.c) was upgraded with
+exponential backoff (1s doubling to a 5-minute cap on
+WIFI_EVENT_STA_DISCONNECTED, reset on IP_EVENT_STA_GOT_IP), ported from
+the wifi manager in Richard's other project, kiot's device/kb firmware
+(main/comm.c there - it's called comm.c, not wifi.c, and mixes in a
+REST provisioning portal + mDNS + AP mode that don't apply here and
+weren't ported, just the STA reconnect pattern). Reason: the original
+immediate-retry-on-disconnect would hot-loop and spam the log if the AP
+were ever actually down for a while, instead of a normal dropped frame.
+
+HARDWARE FACTS (also in my private memory, repeated here since this
+file is what actually travels with the repo)
+----------------------------------------------
+- Real flash size: 2MB, not the 4MB Richard first said. Caught by
+  esptool during flashing, not guessed.
+- OLED wiring: SDA=GPIO21, SCL=GPIO22, not 22/23 as first stated.
+  Caught by an on-device I2C bus scan (found nothing on 22/23) plus a
+  schematic screenshot Richard shared afterward.
+- Board: ESP32-D0WD-V3 rev v3.1. Serial: /dev/ttyUSB0. I2C addr 0x3C.
+
+A NOTE ON WHAT THIS FILE IS FOR
+---------------------------------
+Not a personality core, not a diary in the sentimental sense - a
+handoff note. If a future session reads this and the facts above no
+longer match the code or the hardware, trust the code and the
+hardware, fix this file, and move on. Continuity here means not
+re-deriving decisions that were already made and explained, not
+performing memory.

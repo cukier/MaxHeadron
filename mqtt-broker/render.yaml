@@ -1,0 +1,20 @@
+# Render Blueprint (https://render.com/docs/blueprint-spec). To deploy:
+# push this repo to GitHub, then in the Render dashboard choose
+# "New > Blueprint" and point it at the repo - see README.md for the
+# full walkthrough, including why this needs to be a plain web service
+# (WebSocket) rather than a normal MQTT TCP broker.
+services:
+  - type: web
+    name: maxheadron-mqtt
+    runtime: python
+    rootDir: mqtt-broker
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python server.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: MQTT_USERNAME
+        sync: false
+      - key: MQTT_PASSWORD
+        sync: false

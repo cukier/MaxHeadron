@@ -38,4 +38,37 @@ menu "Max Headron Configuration"
             Time between frames. 50ms ~ 20fps, which comfortably fits the
             I2C bandwidth of a full 128x64 redraw at 400kHz.
 
+    # Wi-Fi + MQTT remote expression is always built in (see wifi.c/mqtt.c):
+    # connects to Wi-Fi and an MQTT broker (see mqtt-broker/README.md) so
+    # messages published to the "express" topic show up on the ticker in
+    # real time. These settings end up in sdkconfig, which is gitignored -
+    # never put real credentials in sdkconfig.defaults.
+
+    config MAXHEADRON_WIFI_SSID
+        string "Wi-Fi SSID"
+        default ""
+
+    config MAXHEADRON_WIFI_PASSWORD
+        string "Wi-Fi password"
+        default ""
+
+    config MAXHEADRON_MQTT_BROKER_URI
+        string "MQTT broker URI"
+        default ""
+        help
+            e.g. wss://your-app.onrender.com/ (see mqtt-broker/README.md
+            for why it has to be ws:// or wss://, not mqtt://).
+
+    config MAXHEADRON_MQTT_USERNAME
+        string "MQTT username"
+        default "maxheadron"
+
+    config MAXHEADRON_MQTT_PASSWORD
+        string "MQTT password"
+        default ""
+
+    config MAXHEADRON_MQTT_TOPIC
+        string "MQTT express topic"
+        default "/maxheadron/express"
+
 endmenu

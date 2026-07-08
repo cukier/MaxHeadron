@@ -16,7 +16,7 @@ typedef struct {
     uint32_t burst_until;
     glitch_kind_t kind;
     int freeze_frames;
-    int shove_dx, shove_dy;
+    int shove_dx, shove_dy, shove_shear;
 
     bool ticker_active;
     uint32_t next_ticker_at;
@@ -38,7 +38,7 @@ void glitch_update(glitch_state_t *gs, uint32_t now_ms);
 bool glitch_is_frozen(const glitch_state_t *gs);
 
 // Adds the current glitch "shove" (if any) on top of the base pose offsets.
-void glitch_pose_shove(const glitch_state_t *gs, int *dx, int *dy);
+void glitch_pose_shove(const glitch_state_t *gs, int *dx, int *dy, int *shear);
 
 // Post-processing pixel effects (tearing, noise, invert flash, ambient
 // scanline roll). Call after face_draw() has rendered the frame.

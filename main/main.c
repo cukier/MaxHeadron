@@ -1,14 +1,17 @@
 /*
- * Max Headron - a generative animation for a 128x64 (or 128x32) SSD1306
- * OLED: HAL 9000's lens. A single unblinking, concentric-ringed eye in a
- * recessed panel, almost perfectly still - a slow breathing dilation and
- * an occasional glint are the only idle motion. Everything is drawn
- * procedurally each frame (no bitmap assets). An on-top glitch layer
- * tears rows, injects noise, flashes inverts, freezes frames and
- * occasionally has it speak a line - all read as rare malfunctions
- * against the otherwise calm stillness, not constant chatter.
+ * Max Headron - a generative, glitchy CG-talking-head animation for a
+ * 128x64 (or 128x32) SSD1306 OLED, in the spirit of Max Headroom.
+ *
+ * Everything on screen is drawn procedurally each frame (no bitmap
+ * assets): a scrolling background grid, a vector bust with sunglasses
+ * that talks and bobs, and an on-top glitch layer that tears rows,
+ * injects noise, flashes inverts, freezes frames and flickers a
+ * stuttering text ticker. Optionally, phrases published over MQTT (see
+ * mqtt.c) preempt the ticker to let a remote conversation "speak"
+ * through it.
  */
 #include <math.h>
+#include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
@@ -24,6 +27,8 @@
 #include "include/gfx.h"
 #include "include/face.h"
 #include "include/glitch.h"
+#include "include/wifi.h"
+#include "include/mqtt.h"
 
 static const char *TAG = "max_headron";
 
@@ -105,8 +110,21 @@ static inline uint32_t now_ms(void) {
     return (uint32_t)(esp_timer_get_time() / 1000);
 }
 
+// wifi_connect_blocking() really does block (indefinitely, retrying) until
+// a Wi-Fi connection succeeds. Run it off the main task so a slow/unreachable
+// AP can't freeze the animation - MQTT is meant to be an add-on, not
+// something the display's liveliness depends on.
+static void network_setup_task(void *arg) {
+    (void)arg;
+    wifi_connect_blocking();
+    mqtt_link_start();
+    vTaskDelete(NULL);
+}
+
 void app_main(void) {
     esp_lcd_panel_handle_t panel = init_display();
+
+    xTaskCreate(network_setup_task, "network_setup", 4096, NULL, tskIDLE_PRIORITY + 1, NULL);
 
     gfx_t g;
     gfx_init(&g, s_framebuf, LCD_H_RES, LCD_V_RES);
@@ -115,40 +133,58 @@ void app_main(void) {
     uint32_t t = now_ms();
     glitch_init(&glitch, t);
 
-    bool spark_active = false;
-    uint32_t spark_until = 0;
-    uint32_t next_spark_at = t + 4000 + (esp_random() % 5000);
+    int mouth_open = 0;
+    uint32_t next_mouth_change = t;
+    bool glint_active = false;
+    uint32_t glint_until = 0;
+    uint32_t next_glint_at = t + 2000 + (esp_random() % 3000);
 
-    ESP_LOGI(TAG, "Max Headron is alive. Good morning.");
+    ESP_LOGI(TAG, "Max Headron is alive. 20 minutes into the future...");
 
     while (1) {
         t = now_ms();
         glitch_update(&glitch, t);
 
         if (!glitch_is_frozen(&glitch)) {
-            if (!spark_active && t >= next_spark_at) {
-                spark_active = true;
-                spark_until = t + 150 + (esp_random() % 150);
-            } else if (spark_active && t >= spark_until) {
-                spark_active = false;
-                next_spark_at = t + 4000 + (esp_random() % 5000);
+            if (t >= next_mouth_change) {
+                mouth_open = (int)(esp_random() % 5);
+                next_mouth_change = t + 90 + (esp_random() % 180);
+            }
+            if (mqtt_consume_spark_request()) {
+                glint_active = true;
+                glint_until = t + 120 + (esp_random() % 150);
+            } else if (!glint_active && t >= next_glint_at) {
+                glint_active = true;
+                glint_until = t + 120 + (esp_random() % 150);
+            } else if (glint_active && t >= glint_until) {
+                glint_active = false;
+                next_glint_at = t + 2000 + (esp_random() % 3000);
             }
 
-            // The only idle motion: a slow, shallow breathing dilation.
-            // No spin, no drift - HAL does not fidget.
-            float breathe_phase = 2.0f * 3.14159265f * (float)(t % 8000) / 8000.0f;
+            float bob_phase = 2.0f * 3.14159265f * (float)(t % 6000) / 6000.0f;
+            float sway_phase = 2.0f * 3.14159265f * (float)(t % 9000) / 9000.0f;
 
             face_pose_t pose = {
                 .dx = 0,
-                .dy = 0,
-                .pulse = (int)(1.5f * sinf(breathe_phase)),
-                .spark = spark_active,
+                .dy = (int)(1.5f * sinf(bob_phase)),
+                .shear = (int)(2.0f * sinf(sway_phase)),
+                .mouth_open = mouth_open,
+                .lens_glint = glint_active,
+                .grid_scroll = (int)(t / 120),
             };
-            glitch_pose_shove(&glitch, &pose.dx, &pose.dy);
+            glitch_pose_shove(&glitch, &pose.dx, &pose.dy, &pose.shear);
 
             face_draw(&g, &pose);
             glitch_apply_post(&glitch, &g);
-            glitch_apply_ticker(&glitch, &g);
+
+            char external_msg[24];
+            if (mqtt_get_external_message(external_msg, sizeof(external_msg), t)) {
+                int len = (int)strlen(external_msg);
+                int x = (LCD_H_RES - len * 8) / 2;
+                gfx_draw_text(&g, x < 0 ? 0 : x, LCD_V_RES - 9, external_msg);
+            } else {
+                glitch_apply_ticker(&glitch, &g);
+            }
 
             ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(panel, 0, 0, LCD_H_RES, LCD_V_RES, s_framebuf));
         }

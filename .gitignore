@@ -7,9 +7,15 @@ dependencies.lock
 sdkconfig
 sdkconfig.old
 
+# Python venvs (tools/say.py, mqtt-broker local testing)
+.venv/
+
 # Editor/IDE
 .vscode/
 .idea/
 
 # OS cruft
 .DS_Store
+
+# Claude Code project instructions - local/session-specific, not for other users
+CLAUDE.md
