@@ -73,13 +73,24 @@ void face_draw(gfx_t *g, const face_pose_t *pose) {
 
 #define TAU 6.28318530f
 
-static void draw_grid(gfx_t *g, int scroll) {
-    int phase = ((scroll % 8) + 8) % 8;
-    for (int y = phase; y < g->height; y += 8) {
-        gfx_hline(g, 0, g->width - 1, y, true);
-    }
-    for (int x = 8; x < g->width; x += 16) {
-        gfx_vline(g, x, 0, g->height - 1, true);
+// Sparse scattered pixels behind the starburst - reads as signal
+// noise/static rather than a deliberate pattern. A tiny xorshift PRNG
+// seeded from `seed` (the caller's free-running frame counter) keeps this
+// self-contained (no esp_random dependency) while still looking different
+// every frame.
+static void draw_static(gfx_t *g, uint32_t seed) {
+    uint32_t x = seed * 2654435761u + 1u; // avoid a zero/degenerate seed
+    const int dot_count = (g->width * g->height) / 40;
+    for (int i = 0; i < dot_count; i++) {
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        int px = (int)(x % (uint32_t)g->width);
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        int py = (int)(x % (uint32_t)g->height);
+        gfx_set_pixel(g, px, py, true);
     }
 }
 
@@ -125,7 +136,7 @@ static void draw_iris(gfx_t *g, int cx, int cy, int r, bool spark) {
 
 void face_draw(gfx_t *g, const face_pose_t *pose) {
     gfx_clear(g);
-    draw_grid(g, pose->grid_scroll);
+    draw_static(g, (uint32_t)pose->grid_scroll);
 
     float s = (float)g->height / 64.0f;
     int base_cx = g->width / 2;
