@@ -134,6 +134,35 @@ static void draw_iris(gfx_t *g, int cx, int cy, int r, bool spark) {
     }
 }
 
+// A burst of particles flying outward from (cx, cy) - each one a short
+// radial streak (tail trailing behind the leading point) rather than a
+// bare dot, so it reads as motion rather than scattered noise. `t` is the
+// burst's progress from 0 (just fired) to 1 (fully spent, particles at
+// max_r); negative skips drawing entirely.
+static void draw_explosion(gfx_t *g, int cx, int cy, int max_r, float t, uint32_t seed) {
+    if (t < 0.0f) {
+        return;
+    }
+    const int n = 14;
+    float dist = t * (float)max_r;
+    float tail = dist - (float)max_r * 0.2f;
+    if (tail < 0.0f) {
+        tail = 0.0f;
+    }
+    uint32_t x = seed * 2654435761u + 1u;
+    for (int i = 0; i < n; i++) {
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        float a = (float)(x % 100000u) * (TAU / 100000.0f);
+        int x0 = cx + rnd(cosf(a) * tail);
+        int y0 = cy + rnd(sinf(a) * tail);
+        int x1 = cx + rnd(cosf(a) * dist);
+        int y1 = cy + rnd(sinf(a) * dist);
+        gfx_line(g, x0, y0, x1, y1, true);
+    }
+}
+
 void face_draw(gfx_t *g, const face_pose_t *pose) {
     gfx_clear(g);
     draw_static(g, (uint32_t)pose->grid_scroll);
@@ -166,6 +195,9 @@ void face_draw(gfx_t *g, const face_pose_t *pose) {
 
     draw_spokes(g, cx, cy, inner_spoke_r, long_r, short_r, pose->rotation);
     draw_iris(g, cx, cy, iris_r, pose->spark);
+
+    int boom_r = (int)sqrtf((float)(base_cx * base_cx + base_cy * base_cy)) + 2;
+    draw_explosion(g, cx, cy, boom_r, pose->explode_t, pose->explode_seed);
 }
 
 #else // Max Headroom bust (default)

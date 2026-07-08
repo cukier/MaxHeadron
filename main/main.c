@@ -145,6 +145,14 @@ void app_main(void) {
     uint32_t glint_until = 0;
     uint32_t next_glint_at = t + 2000 + (esp_random() % 3000);
 
+    // Starburst-only "star explosion" - see face.c's draw_explosion(). A
+    // harmless no-op on the other faces since they ignore pose.explode_t.
+    bool exploding = false;
+    uint32_t explode_start = 0;
+    uint32_t explode_seed = 0;
+    const uint32_t explode_duration_ms = 700;
+    uint32_t next_explode_at = t + 10000 + (esp_random() % 15000);
+
     ESP_LOGI(TAG, "Max Headron is alive. 20 minutes into the future...");
 
     while (1) {
@@ -172,6 +180,22 @@ void app_main(void) {
             float breathe_phase = 2.0f * 3.14159265f * (float)(t % 8000) / 8000.0f;
             float spin_phase = 2.0f * 3.14159265f * (float)(t % 20000) / 20000.0f;
 
+            if (!exploding && t >= next_explode_at) {
+                exploding = true;
+                explode_start = t;
+                explode_seed = esp_random();
+            }
+            float explode_t = -1.0f;
+            if (exploding) {
+                uint32_t elapsed = t - explode_start;
+                if (elapsed >= explode_duration_ms) {
+                    exploding = false;
+                    next_explode_at = t + 10000 + (esp_random() % 15000);
+                } else {
+                    explode_t = (float)elapsed / (float)explode_duration_ms;
+                }
+            }
+
             face_pose_t pose = {
                 .dx = 0,
                 .dy = (int)(1.5f * sinf(bob_phase)),
@@ -182,6 +206,8 @@ void app_main(void) {
                 .pulse = (int)(1.5f * sinf(breathe_phase)), // HAL-eye/starburst only
                 .spark = glint_active,                       // HAL-eye/starburst only
                 .rotation = spin_phase,                      // starburst only
+                .explode_t = explode_t,                       // starburst only
+                .explode_seed = explode_seed,                 // starburst only
             };
             glitch_pose_shove(&glitch, &pose.dx, &pose.dy, &pose.shear);
 
