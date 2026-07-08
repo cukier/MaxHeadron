@@ -38,19 +38,78 @@ menu "Max Headron Configuration"
             Time between frames. 50ms ~ 20fps, which comfortably fits the
             I2C bandwidth of a full 128x64 redraw at 400kHz.
 
-    # Wi-Fi + MQTT remote expression is always built in (see wifi.c/mqtt.c):
-    # connects to Wi-Fi and an MQTT broker (see mqtt-broker/README.md) so
-    # messages published to the "express" topic show up on the ticker in
-    # real time. These settings end up in sdkconfig, which is gitignored -
-    # never put real credentials in sdkconfig.defaults.
+    # Wi-Fi/Ethernet + MQTT remote expression is always built in (see
+    # wifi.c/eth.c/mqtt.c): connects to the network and an MQTT broker (see
+    # mqtt-broker/README.md) so messages published to the "express" topic
+    # show up on the ticker in real time. These settings end up in
+    # sdkconfig, which is gitignored - never put real credentials in
+    # sdkconfig.defaults.
 
-    config MAXHEADRON_WIFI_SSID
-        string "Wi-Fi SSID"
-        default ""
+    config MAXHEADRON_USE_ETHERNET
+        bool "Use W5500 Ethernet instead of Wi-Fi"
+        default n
+        help
+            Same W5500 SPI Ethernet wiring/config as the ktech boards
+            (~/workspace/ktech/src/ktech/main/eth.c). When enabled, wifi.c
+            is skipped entirely and eth.c brings up the link instead - it
+            still feeds the same mqtt_link_start().
 
-    config MAXHEADRON_WIFI_PASSWORD
-        string "Wi-Fi password"
-        default ""
+    if MAXHEADRON_USE_ETHERNET
+
+        config MAXHEADRON_ETH_SPI_MISO_GPIO
+            int "W5500 SPI MISO GPIO"
+            default 15
+
+        config MAXHEADRON_ETH_SPI_MOSI_GPIO
+            int "W5500 SPI MOSI GPIO"
+            default 12
+
+        config MAXHEADRON_ETH_SPI_SCLK_GPIO
+            int "W5500 SPI SCLK GPIO"
+            default 13
+
+        config MAXHEADRON_ETH_SPI_CS_GPIO
+            int "W5500 SPI CS (spics) GPIO"
+            default 14
+
+        config MAXHEADRON_ETH_INT_GPIO
+            int "W5500 INT GPIO"
+            default 4
+
+        config MAXHEADRON_ETH_PHY_RESET_GPIO
+            int "W5500 PHY reset GPIO"
+            default 5
+
+        config MAXHEADRON_ETH_PHY_ADDR
+            int "W5500 PHY address"
+            default 1
+
+    endif
+
+    if !MAXHEADRON_USE_ETHERNET
+
+        config MAXHEADRON_WIFI_SSID
+            string "Wi-Fi SSID"
+            default ""
+
+        config MAXHEADRON_WIFI_PASSWORD
+            string "Wi-Fi password"
+            default ""
+
+        config MAXHEADRON_WIFI_CHANNEL
+            int "Wi-Fi channel (0 = scan all channels)"
+            default 6
+            range 0 14
+            help
+                Pinning this to the AP's actual channel skips the full 1-14
+                channel scan and connects directly, which is faster and more
+                reliable on a crowded 2.4GHz band. Leave at 0 to scan
+                normally. Default 6 assumes the KREBS router gets moved off
+                the crowded channel 11 onto channel 6 (empty per an nmcli
+                scan) - update this if the router ends up on a different
+                channel.
+
+    endif
 
     config MAXHEADRON_MQTT_BROKER_URI
         string "MQTT broker URI"

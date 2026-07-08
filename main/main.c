@@ -28,6 +28,7 @@
 #include "include/face.h"
 #include "include/glitch.h"
 #include "include/wifi.h"
+#include "include/eth.h"
 #include "include/mqtt.h"
 
 static const char *TAG = "max_headron";
@@ -110,13 +111,18 @@ static inline uint32_t now_ms(void) {
     return (uint32_t)(esp_timer_get_time() / 1000);
 }
 
-// wifi_connect_blocking() really does block (indefinitely, retrying) until
-// a Wi-Fi connection succeeds. Run it off the main task so a slow/unreachable
-// AP can't freeze the animation - MQTT is meant to be an add-on, not
-// something the display's liveliness depends on.
+// wifi_connect_blocking()/eth_connect_blocking() really do block
+// (indefinitely, retrying) until the network comes up. Run this off the
+// main task so a slow/unreachable AP or unplugged cable can't freeze the
+// animation - MQTT is meant to be an add-on, not something the display's
+// liveliness depends on.
 static void network_setup_task(void *arg) {
     (void)arg;
+#if CONFIG_MAXHEADRON_USE_ETHERNET
+    eth_connect_blocking();
+#else
     wifi_connect_blocking();
+#endif
     mqtt_link_start();
     vTaskDelete(NULL);
 }
